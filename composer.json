@@ -1,0 +1,29 @@
+{
+    "name": "ordergram/ordergram",
+    "description": "PHP CLI scraper that monitors Telegram groups for ORDER_PLACED messages, parses them, and routes structured order events",
+    "type": "project",
+    "license": "MIT",
+    "keywords": ["telegram", "scraper", "orders", "cli", "automation", "webhook"],
+    "require": {
+        "php": "^8.2",
+        "guzzlehttp/guzzle": "^7.5"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "OrderGram\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/ordergram"
+    ],
+    "scripts": {
+        "test": "vendor/bin/phpunit"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": true
+    }
+}

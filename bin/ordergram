@@ -1,0 +1,130 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * OrderGram
+ *
+ * Telegram polling client that detects ORDER_PLACED messages,
+ * extracts structured order data and forwards events to configured outputs.
+ */
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use OrderGram\Config;
+use OrderGram\OrderParser;
+use OrderGram\Runner;
+use OrderGram\TelegramClient;
+
+/**
+ * Display application banner with colors.
+ */
+function printBanner(): void
+{
+    echo "\n";
+    echo "\033[38;2;0;180;220m"; // cyan
+    echo "   ___  _     _               ____                 \n";
+    echo "  / _ \\| |__ (_)_ __   __ _  / ___|_ __ __ _ _ __  \n";
+    echo " | | | | '_ \\| | '_ \\ / _` | | |  _| '__/ _` | '_ \\ \n";
+    echo " | |_| | |_) | | | | | (_| | | |_| | | | (_| | | | |\n";
+    echo "  \\___/|_.__/|_|_| |_|\\__, |  \\____|_|  \\__,_|_| |_|\n";
+    echo "                       |___/                        \n";
+    echo "\033[0m";
+    echo "\033[38;2;255;180;0mTelegram Order Monitor & Forwarder\033[0m\n";
+    echo "\033[2mSelf-hosted • Zero bloat • Regex parser • Webhook dispatch\033[0m\n\n";
+}
+
+/**
+ * Parse command-line arguments using getopt.
+ *
+ * @return array{config: string, once: bool, dryRun: bool, help: bool}
+ */
+function parseCliOptions(array $argv): array
+{
+    $options = getopt('', ['config:', 'once', 'dry-run', 'help']);
+
+    return [
+        'config' => $options['config'] ?? 'config.json',
+        'once'   => isset($options['once']),
+        'dryRun' => isset($options['dry-run']),
+        'help'   => isset($options['help']),
+    ];
+}
+
+/**
+ * Print CLI usage information.
+ */
+function printUsage(): void
+{
+    echo "Usage:\n";
+    echo "  php bin/ordergram [options]\n\n";
+    echo "Options:\n";
+    echo "  --config=<path>   Path to JSON configuration file (default: config.json)\n";
+    echo "  --once            Poll once then exit (useful for testing and cron)\n";
+    echo "  --dry-run         Parse messages but skip actual webhook/file writes\n";
+    echo "  --help            Show this help message and exit\n\n";
+    echo "Example:\n";
+    echo "  php bin/ordergram --config=config.example.json --dry-run\n";
+    echo "  cp config.example.json config.json && php bin/ordergram\n";
+}
+
+function main(): void
+{
+    printBanner();
+
+    $opts = parseCliOptions($_SERVER['argv']);
+
+    if ($opts['help']) {
+        printUsage();
+        exit(0);
+    }
+
+    $configPath = $opts['config'];
+
+    if (!file_exists($configPath) || !is_readable($configPath)) {
+        fwrite(STDERR, "\033[31mError:\033[0m Config file not found or not readable: {$configPath}\n");
+        fwrite(STDERR, "Copy config.example.json to config.json and update your bot token and chat_id.\n");
+        exit(1);
+    }
+
+    try {
+        $config = Config::fromFile($configPath);
+
+        $client = new TelegramClient($config->getBotToken());
+        $parser = new OrderParser($config->getParsePatterns());
+
+        $runner = new Runner(
+            $config,
+            $client,
+            $parser,
+            $opts['dryRun'],
+            $opts['once']
+        );
+
+        echo "\033[32m✓\033[0m OrderGram initialized successfully.\n";
+        echo "Monitoring chat: \033[33m{$config->getChatId()}\033[0m\n";
+
+        if ($opts['dryRun']) {
+            echo "\033[33m⚠\033[0m DRY-RUN mode enabled — no side effects will occur.\n";
+        }
+        if ($opts['once']) {
+            echo "\033[33m→\033[0m One-shot mode enabled.\n";
+        }
+
+        echo "\nStarting polling loop... (Ctrl+C to stop)\n\n";
+
+        $runner->start();
+    } catch (\Throwable $e) {
+        fwrite(STDERR, "\n\033[31m✕ Fatal error:\033[0m " . $e->getMessage() . "\n");
+
+        if ($e->getPrevious() !== null) {
+            fwrite(STDERR, "  Caused by: " . $e->getPrevious()->getMessage() . "\n");
+        }
+
+        fwrite(STDERR, "\nCheck your bot token, chat_id and network connectivity.\n");
+        exit(1);
+    }
+}
+
+main();
