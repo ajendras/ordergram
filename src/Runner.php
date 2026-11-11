@@ -48,10 +48,11 @@ final class Runner
         echo "\033[36m→\033[0m Starting Telegram long-poll (offset: {$offset}, timeout: {$timeout}s)\n\n";
 
         while (true) {
+            $updates = [];
+            $processed = 0;
             try {
                 $updates = $this->client->getUpdates($offset, $timeout);
 
-                $processed = 0;
                 foreach ($updates as $update) {
                     $this->processUpdate($update);
                     $processed++;
@@ -78,8 +79,6 @@ final class Runner
                 break;
             }
 
-            // When long-polling returns immediately we add a small delay
-            // to prevent busy-looping on network issues.
             if (empty($updates)) {
                 usleep(500_000);
             }
