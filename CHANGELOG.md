@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - initialize variables before try-catch in start() to avoid warning on exception path
 
+### Changed
+
+- add --do-not-cache-result to avoid cache-related test failures on PHP 8.3
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

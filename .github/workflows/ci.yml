@@ -24,4 +24,4 @@ jobs:
       - name: Lint
         run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -r -n1 php -l
       - name: Test
-        run: if [ -x vendor/bin/phpunit ]; then vendor/bin/phpunit; else echo "no phpunit"; fi
+        run: if [ -x vendor/bin/phpunit ]; then vendor/bin/phpunit --do-not-cache-result; else echo "no phpunit"; fi
