@@ -20,7 +20,7 @@
         "bin/ordergram"
     ],
     "scripts": {
-        "test": "vendor/bin/phpunit"
+        "test": "vendor/bin/phpunit --do-not-cache-result"
     },
     "config": {
         "sort-packages": true,
