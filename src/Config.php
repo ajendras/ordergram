@@ -34,7 +34,7 @@ final class Config
         $this->botToken = $this->validateBotToken($data['bot_token'] ?? '');
         $this->chatId = $this->validateChatId($data['chat_id'] ?? null);
         $this->pollTimeout = max(5, (int) ($data['poll_timeout'] ?? 30));
-        $this->lastUpdateFile = (string) ($data['last_update_file'] ?? '.last_update_id');
+        $this->lastUpdateFile = (string) ($data['last_update_file'] ?? '.last_update.json');
         $this->outputs = $this->validateOutputs($data['outputs'] ?? ['console']);
         $this->webhookUrl = isset($data['webhook_url']) && is_string($data['webhook_url']) && $data['webhook_url'] !== ''
             ? $data['webhook_url']

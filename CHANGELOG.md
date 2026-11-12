@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - add --do-not-cache-result to avoid cache-related test failures on PHP 8.3
 
+### Added
+
+- persist last_update_id using structured JSON with legacy plain-text support
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

@@ -6,15 +6,16 @@ namespace OrderGram;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
 use Throwable;
 
 /**
  * Main orchestration engine for the OrderGram polling loop.
  *
- * Loads last processed update ID, polls Telegram, routes relevant
- * messages through the parser, and dispatches parsed Orders to all
- * configured outputs (console, file, webhook). Supports dry-run and
- * one-shot modes for testing and cron usage.
+ * Loads last processed update ID from a JSON file (with legacy support),
+ * polls Telegram, routes relevant messages through the parser, and
+ * dispatches parsed Orders to all configured outputs (console, file, webhook).
+ * Supports dry-run and one-shot modes for testing and cron usage.
  */
 final class Runner
 {
@@ -38,7 +39,7 @@ final class Runner
      * Start the main polling loop.
      *
      * Uses long-polling via the TelegramClient. Persists update offset
-     * after each batch. Handles errors gracefully with exponential back-off.
+     * to JSON file after each batch. Handles errors gracefully with exponential back-off.
      */
     public function start(): void
     {
@@ -207,6 +208,13 @@ final class Runner
         }
     }
 
+    /**
+     * Load the last update ID from the configured JSON file.
+     *
+     * Supports both the new JSON format ({last_update_id: N, ...}) and
+     * legacy plain-text files containing only the integer for backwards
+     * compatibility. Returns 0 if the file cannot be read or parsed.
+     */
     private function loadLastUpdateId(): int
     {
         $file = $this->config->getLastUpdateFile();
@@ -221,9 +229,34 @@ final class Runner
             return 0;
         }
 
-        return (int) trim($content);
+        $trimmed = trim($content);
+        if ($trimmed === '') {
+            return 0;
+        }
+
+        // Support legacy plain-text files containing only the integer
+        if (!str_starts_with($trimmed, '{')) {
+            return (int) $trimmed;
+        }
+
+        try {
+            $data = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
+            return is_array($data) && isset($data['last_update_id'])
+                ? (int) $data['last_update_id']
+                : (int) $trimmed;
+        } catch (JsonException $e) {
+            fwrite(STDERR, "\033[33mWarning:\033[0m Invalid JSON in {$file}, starting from offset 0. ({$e->getMessage()})\n");
+            return 0;
+        }
     }
 
+    /**
+     * Save the last update ID to the configured JSON file.
+     *
+     * Only updates if the ID is newer. Uses JSON_PRETTY_PRINT for
+     * readability and includes a timestamp. Failures are logged but
+     * do not stop the polling loop.
+     */
     private function saveLastUpdateId(int $updateId): void
     {
         if ($updateId <= $this->lastUpdateId) {
@@ -233,8 +266,17 @@ final class Runner
         $this->lastUpdateId = $updateId;
         $file = $this->config->getLastUpdateFile();
 
-        if (file_put_contents($file, (string) $updateId, LOCK_EX) === false) {
-            fwrite(STDERR, "\033[31mFailed to persist last_update_id to {$file}\033[0m\n");
+        try {
+            $data = [
+                'last_update_id' => $updateId,
+                'updated_at' => (new \DateTimeImmutable())->format('c'),
+            ];
+            $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            if (file_put_contents($file, $json, LOCK_EX) === false) {
+                fwrite(STDERR, "\033[31mFailed to persist last_update_id to {$file}\033[0m\n");
+            }
+        } catch (Throwable $e) {
+            fwrite(STDERR, "\033[31mFailed to save last_update_id to JSON {$file}: " . $e->getMessage() . "\033[0m\n");
         }
     }
 }

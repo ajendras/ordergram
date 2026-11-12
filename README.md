@@ -23,7 +23,7 @@
 
 Many services and trading groups push order confirmations into Telegram. OrderGram fills the gap with a tiny, zero-bloat PHP tool that polls a group, detects ORDER_PLACED keywords, extracts key fields, and forwards clean JSON events. Perfect for automation enthusiasts, indie developers and small e-commerce teams who want self-hosted control.
 
-- **Zero-dependency polling** — Long-polling via the Telegram Bot API with automatic `last_update_id` persistence
+- **Zero-dependency polling** — Long-polling via the Telegram Bot API with automatic `last_update_id` persistence to JSON file
 - **Configurable regex parser** — `OrderParser` extracts `order_id`, `amount`, `customer` and metadata using patterns from `config.json`
 - **Multiple outputs** — Console, append-only JSONL file, or POST to any `webhook_url` — all controlled by the `outputs` array
 - **CLI-first & testable** — Supports `--once`, `--dry-run` and full PHPUnit coverage of message variants
@@ -52,7 +52,7 @@ POSTs parsed orders to any configured HTTP endpoint
 <tr>
 <td>
 💾 <b>Update Tracking</b><br>
-Persists last_update_id to avoid reprocessing messages
+Persists `last_update_id` to JSON file to avoid reprocessing messages
 </td>
 <td>
 📤 <b>Multiple Outputs</b><br>
@@ -142,7 +142,7 @@ Then run normally — `OrderParser` will use the new rules.
 | `bot_token`       | (required)               | Telegram Bot API token in `123456:AAF...` format |
 | `chat_id`         | (required)               | Chat ID to monitor (negative for groups/supergroups) |
 | `poll_timeout`    | `30`                     | Long-poll timeout in seconds (max 60) |
-| `last_update_file`| `.last_update_id`        | File storing the last processed `update_id` |
+| `last_update_file`| `.last_update.json`      | JSON file storing the last processed `update_id` (legacy plain-text supported) |
 | `outputs`         | `["console"]`            | Array of enabled outputs: `console`, `file`, `webhook` |
 | `webhook_url`     | `null`                   | HTTP endpoint that receives JSON order payloads |
 | `file_path`       | `orders.jsonl`           | Path for append-only JSON Lines output |
@@ -162,7 +162,7 @@ flowchart LR
     OrderParser --parse--> Order
     Order --toArray--> Runner
     Runner --dispatch--> Outputs[Console / File / Webhook]
-    Runner --saveLastUpdateId--> .last_update_id
+    Runner --saveLastUpdateId--> .last_update.json
 ```
 
 `Runner` orchestrates the infinite polling loop (or one-shot mode). `TelegramClient` handles all Bot API communication with offset tracking. `OrderParser` uses the configured regexes to turn raw text into an immutable `Order` DTO, which is then routed to every enabled output. Errors are caught gracefully so the monitor stays alive.
@@ -181,7 +181,7 @@ flowchart LR
 │   └── Runner.php             # Main loop, processUpdate(), dispatch() to console/file/webhook
 ├── config.example.json        # Ready-to-copy template with patterns and outputs
 ├── composer.json              # PSR-4 autoload, guzzlehttp/guzzle, phpunit script
-└── .last_update_id            # Created at runtime to persist offset
+└── .last_update.json          # Created at runtime to persist offset as JSON
 ```
 
 ## 🧪 Testing
@@ -197,7 +197,7 @@ The suite covers `Config` validation, `OrderParser` handling of many ORDER_PLACE
 ## 📍 Roadmap
 <!-- roadmap:start -->
 - [x] **v0.1.0** — first release: Telegram Polling, Smart Parser, Webhook Dispatch, Multiple Outputs
-- [ ] Persist last_update_id to JSON file instead of memory
+- [x] Persist last_update_id to JSON file instead of memory
 - [ ] Add support for multiple target chat_ids
 - [ ] Implement exponential backoff on API errors
 - [ ] Support environment variable substitution in config

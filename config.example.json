@@ -2,7 +2,7 @@
     "bot_token": "123456:AAFxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
     "chat_id": -1001234567890,
     "poll_timeout": 30,
-    "last_update_file": ".last_update_id",
+    "last_update_file": ".last_update.json",
     "outputs": [
         "console",
         "file"
